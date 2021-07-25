@@ -35,6 +35,8 @@ class Sprite {
     update(canvas) {
         //画像などを画面に表示するためのメソッドを呼び出す
         this.render(canvas);
+        //スプライトを動かしたり、なにかのきっかけでイベントを発生させたりするために使うメソッドを呼び出す
+        this.onenterframe();
     } //update() 終了
 
     /**
@@ -45,27 +47,30 @@ class Sprite {
      */
     render(canvas) {
         //キャンバスの外にスプライトがあるとき、ここでこのメソッドを終了する
-		if ( this.x < -1 * this.width || this.x > canvas.width ) return;
-		if ( this.y < -1 * this.height || this.y > canvas.height ) return;
+        if (this.x < -1 * this.width || this.x > canvas.width) return;
+        if (this.y < -1 * this.height || this.y > canvas.height) return;
 
-		//X,Y方向に、何番目の画像か
-		const _frameX = this.frame % ( this.img.width / this.width );
-		const _frameY = ~~( this.frame / ( this.img.width / this.width ) );//「~~」少数切り捨て
+        //X,Y方向に、何番目の画像か
+        const _frameX = this.frame % (this.img.width / this.width);
+        const _frameY = ~~(this.frame / (this.img.width / this.width));//「~~」少数切り捨て
 
-		//画家さん（コンテキスト）を呼ぶ
-		const _ctx = canvas.getContext( '2d' );
-		//画家さんに、絵を描いてとお願いする
-		_ctx.drawImage(
-			this.img,
-			this.width * _frameX,
-			this.height * _frameY,
-			this.width,
-			this.height,
-			this.x,
-			this.y,
-			this.width,
-			this.height
-		);
+        //画家さん（コンテキスト）を呼ぶ
+        const _ctx = canvas.getContext('2d');
+        //画家さんに、絵を描いてとお願いする
+        _ctx.drawImage(
+            this.img,
+            this.width * _frameX,
+            this.height * _frameY,
+            this.width,
+            this.height,
+            this.x,
+            this.y,
+            this.width,
+            this.height
+        );
     } //render() 終了
-
+    /**
+         * 常に呼び出され、スプライトの移動やイベントの発生などに使うメソッド。空なのはオーバーライド（上書き）して使うため
+         */
+    onenterframe() { }
 }
