@@ -16,8 +16,14 @@ class Scene {
 	 */
 	add(obj) {
 		//this.objsの末尾に、objを追加
-		this.objs.push(obj);
+		//this.objs.push(obj);
+		//引数がSprite、Text、Tilemapのとき、this.objsの末尾にobjを追加
+		if (obj instanceof Sprite || obj instanceof Text || obj instanceof Tilemap) this.objs.push(obj);
+		//引数がSprite、Text、Tilemapでなければ、コンソールにエラーを表示
+		else console.error('Sceneに追加できるのはSprite、Text、Tilemapだけだよ！');
+
 	} //add() 終了
+
 	/**Gameクラスのメインループからずっと呼び出され続ける
 		 *
 		 * 引数
