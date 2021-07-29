@@ -35,6 +35,17 @@ class CharacterTile extends Tile {
 		if (this.y + this.shiftY < -1 * this.size || this.y + this.shiftY > canvas.height) return;
 		//画家さん（コンテキスト）を呼ぶ
 		const _ctx = canvas.getContext('2d');
+		//スプライトを回転させるときの中心位置を変更するための、canvasの原点の移動量
+		const _translateX = this.x + this.width / 2 + this.shiftX;
+		const _translateY = this.y + this.height / 2 + this.shiftY;
+		//描画状態を保存する
+		_ctx.save();
+		//canvasの原点の移動
+		_ctx.translate(_translateX, _translateY);
+		//canvasを回転
+		_ctx.rotate(this.rotate * Math.PI / 180);
+		//移動したcanvasの原点を戻す
+		_ctx.translate(-1 * _translateX, -1 * _translateY);
 		//画家さんに、絵を描いてとお願いする
 		_ctx.drawImage(
 			this.img,
@@ -47,6 +58,8 @@ class CharacterTile extends Tile {
 			this.size,
 			this.size
 		);
+		//保存しておいた描画状態に戻す
+		_ctx.restore();
 	} //render() 終了
 
 }

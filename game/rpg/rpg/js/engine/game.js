@@ -83,6 +83,33 @@ class Game {
         addEventListener('keydown', _keyEvent, { passive: false });
         //キーがはなされたとき
         addEventListener('keyup', _keyEvent, { passive: false });
+        //画面がタッチされたり、指が動いたりしたときなどに呼ばれる（スマホ）
+        //シーンや、スプライトなどのオブジェクトの左上端から見た、それぞれの指の位置を取得できるようになる
+        const _touchEvent = e => {
+            //デフォルトのイベントを発生させない
+            e.preventDefault();
+            //タッチされた場所などの情報を取得
+            const _touches = e.changedTouches[0];
+            //ターゲット（今回はcanvas）のサイズ、ブラウザで表示されている部分の左上から見てどこにあるか、などの情報を取得
+            const _rect = _touches.target.getBoundingClientRect();
+            //タッチされた場所を計算
+            const _fingerPosition = {
+                x: (_touches.clientX - _rect.left) / _rect.width * this.canvas.width,
+                y: (_touches.clientY - _rect.top) / _rect.height * this.canvas.height
+            };
+            //イベントのタイプを_eventTypeに代入
+            const _eventType = e.type;
+            //タッチイベントを割り当てるためのメソッドを呼び出す
+            this.currentScene.assignTouchevent(_eventType, _fingerPosition);
+        } //_touchEvent() 終了
+
+        //タッチされたとき
+        this.canvas.addEventListener('touchstart', _touchEvent, { passive: false });
+        //指が動かされたとき
+        this.canvas.addEventListener('touchmove', _touchEvent, { passive: false });
+        //指がはなされたとき
+        this.canvas.addEventListener('touchend', _touchEvent, { passive: false });
+
     } //_setEventListener() 終了
 
 

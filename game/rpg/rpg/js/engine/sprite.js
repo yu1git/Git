@@ -1,8 +1,8 @@
 'use strict'
 
-/**
+/**********************************
  * スプライトに関してのクラス
- */
+ **********************************/
 class Sprite {
 
     /**
@@ -30,6 +30,8 @@ class Sprite {
         this.vx = this.vy = 0;//初期化
         //スプライトの位置を、数値の分、ずらすことができる
         this.shiftX = this.shiftY = 0;
+        //スプライトの角度
+        this.rotate = 0;
     } //constructor() 終了
 
     /**Gameクラスのメインループからずっと呼び出され続ける
@@ -67,6 +69,17 @@ class Sprite {
 
         //画家さん（コンテキスト）を呼ぶ
         const _ctx = canvas.getContext('2d');
+        //スプライトを回転させるときの中心位置を変更するための、canvasの原点の移動量
+        const _translateX = this.x + this.width / 2 + this.shiftX;
+        const _translateY = this.y + this.height / 2 + this.shiftY;
+        //描画状態を保存する
+        _ctx.save();
+        //canvasの原点の移動
+        _ctx.translate(_translateX, _translateY);
+        //canvasを回転
+        _ctx.rotate(this.rotate * Math.PI / 180);//円周率(180度)÷180＝1度
+        //移動したcanvasの原点を戻す
+        _ctx.translate(-1 * _translateX, -1 * _translateY);
         //画家さんに、絵を描いてとお願いする
         _ctx.drawImage(
             this.img,
@@ -81,9 +94,80 @@ class Sprite {
             this.width,
             this.height
         );
+        //保存しておいた描画状態に戻す
+        _ctx.restore();
     } //render() 終了
+    /**
+     * タッチした指の、相対的な位置（タッチしたオブジェクトの左上からの位置）を取得できるメソッド
+     *
+     * 引数
+     * fingerPosition : 指の位置の座標
+     */
+    getRelactiveFingerPosition(fingerPosition) {
+        //タッチしたものの、左上部分からの座標
+        const _relactiveFingerPosition = {
+            x: fingerPosition.x - this.x - this.shiftX,
+            y: fingerPosition.y - this.y - this.shiftY
+        };
+
+        //数値が範囲内にあるかどうかを取得できる関数
+        const inRange = (num, min, max) => {
+            //数値が範囲内にあるかどうか
+            const _inRange = (min <= num && num <= max);
+            //結果を返す
+            return _inRange;
+        }
+
+        //タッチした位置がオブジェクトの上の場合、相対的な位置を返す
+        if (inRange(_relactiveFingerPosition.x, 0, this.width) && inRange(_relactiveFingerPosition.y, 0, this.height)) return _relactiveFingerPosition;
+        //オブジェクトから外れていれば、falseを返す
+        return false;
+    } //getRelactiveFingerPosition() 終了
+
+    /**
+     * タッチイベントを割り当てるためのメソッド
+     *
+     * 引数
+     * eventType : イベントのタイプ
+     * fingerPosition : 指の位置
+     */
+    assignTouchevent(eventType, fingerPosition) {
+        //相対的な座標（タッチしたオブジェクトの、左上からの座標）を取得
+        const _relactiveFingerPosition = this.getRelactiveFingerPosition(fingerPosition);
+
+        //イベントのタイプによって呼び出すメソッドを変える
+        switch (eventType) {
+            case 'touchstart':
+                //指の場所がスプライトの上にあるとき、ontouchstartメソッドを呼び出す
+                if (_relactiveFingerPosition) this.ontouchstart(_relactiveFingerPosition.x, _relactiveFingerPosition.y);
+                break;
+            case 'touchmove':
+                //指の場所がスプライトの上にあるとき、ontouchmoveメソッドを呼び出す
+                if (_relactiveFingerPosition) this.ontouchmove(_relactiveFingerPosition.x, _relactiveFingerPosition.y);
+                break;
+            case 'touchend':
+                //ontouchendメソッドを呼び出す
+                this.ontouchend(_relactiveFingerPosition.x, _relactiveFingerPosition.y);
+                break;
+        }
+    } //assignTouchevent() 終了
     /**
          * 常に呼び出され、スプライトの移動やイベントの発生などに使うメソッド。空なのはオーバーライド（上書き）して使うため
          */
     onenterframe() { }
+    /**
+     * タッチされたときに呼び出される
+     */
+    ontouchstart() { }
+
+    /**
+     * 指が動かされたときに呼び出される
+     */
+    ontouchmove() { }
+
+    /**
+     * 指がはなされたときに呼び出される
+     */
+    ontouchend() { }
+
 }

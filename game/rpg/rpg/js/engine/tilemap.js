@@ -148,10 +148,87 @@ class Tilemap {
             }
         }
     } //render() 終了
+    /**
+         * タッチした指の、相対的な位置（タッチしたオブジェクトの左上からの位置）を取得できるメソッド
+         *
+         * 引数
+         * fingerPositionX : 指の位置の座標
+         */
+    getRelactiveFingerPosition(fingerPosition) {
+        //タッチしたものの、左上部分からの座標
+        const _relactiveFingerPosition = {
+            x: fingerPosition.x - this.x,
+            y: fingerPosition.y - this.y
+        };
 
+        //数値が範囲内にあるかどうかを取得できる関数
+        const inRange = (num, min, max) => {
+            //数値が範囲内にあるかどうか
+            const _inRange = (min <= num && num <= max);
+            //結果を返す
+            return _inRange;
+        }
+
+        //タッチした位置がオブジェクトの上の場合、相対的な位置を返す
+        if (inRange(_relactiveFingerPosition.x, 0, this.size * this.data[0].length) && inRange(_relactiveFingerPosition.y, 0, this.size * this.data.length)) return _relactiveFingerPosition;
+        //オブジェクトから外れていれば、falseを返す
+        return false;
+    } //getRelactiveFingerPosition() 終了
+
+    /**
+     * タッチイベントを割り当てるためのメソッド
+     *
+     * 引数
+     * eventType : イベントのタイプ
+     * fingerPosition : 指の位置
+     */
+    assignTouchevent(eventType, fingerPosition) {
+        //相対的な座標（タッチしたオブジェクトの、左上からの座標）を取得
+        const _relactiveFingerPosition = this.getRelactiveFingerPosition(fingerPosition);
+
+        //目的のオブジェクト以外の場所がタッチされた場合は、この下をスキップして、次から繰り返し
+        if (!_relactiveFingerPosition) return;
+
+        //イベントのタイプによって呼び出すメソッドを変える
+        switch (eventType) {
+            case 'touchstart':
+                //現在のシーンのオブジェクトの、touchstartメソッドを呼び出す
+                this.ontouchstart(_relactiveFingerPosition.x, _relactiveFingerPosition.y);
+                break;
+            case 'touchmove':
+                //現在のシーンのオブジェクトの、touchmoveメソッドを呼び出す
+                this.ontouchmove(_relactiveFingerPosition.x, _relactiveFingerPosition.y);
+                break;
+            case 'touchend':
+                //現在のシーンのオブジェクトの、touchendメソッドを呼び出す
+                this.ontouchend(_relactiveFingerPosition.x, _relactiveFingerPosition.y);
+                break;
+        }
+
+        //タイルマップの上の、タイルの数だけ繰り返す
+        for (let i = 0; i < this.tiles.length; i++) {
+            //タイルマップの上のタイルの、タッチイベントを割り当てるためのメソッドを呼び出す
+            this.tiles[i].assignTouchevent(eventType, fingerPosition);
+        }
+    } //assignTouchevent() 終了
     /**
      * 常に呼び出されるメソッド。空なのはオーバーライド（上書き）して使うため
      */
     onenterframe() { }
+
+    /**
+     * タッチされたときに呼び出される
+     */
+    ontouchstart() { }
+
+    /**
+     * 指が動かされたときに呼び出される
+     */
+    ontouchmove() { }
+
+    /**
+     * 指がはなされたときに呼び出される
+     */
+    ontouchend() { }
 
 }
