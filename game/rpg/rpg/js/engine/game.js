@@ -29,6 +29,20 @@ class Game {
         //現在のシーンをいれておくためのもの
         this.currentScene;
 
+        //音声を入れておくためのもの
+        this.sounds = [];
+        //画面がすでにタッチされたかどうか
+        this._isAlreadyTouched = false;
+        //設定が終わったかどうか
+        this._hasFinishedSetting = false;
+
+        //プリロードは、ゲームのメイン部分が始まる前に動かしたいので、それを入れておくための配列
+        this._preloadPromises = [];
+
+
+        //現在のシーンを一時的に入れておくためのもの。シーンが切り替わったかどうかを判断するのに使う
+        this._temporaryCurrentScene;
+
         //ゲームに使用するキーと、そのキーが押されているかどうかを入れるための連想配列
         //例 { up: false, down: false }
         this.input = {};
@@ -36,6 +50,81 @@ class Game {
         //例 { up: "ArrowUp", down: "ArrowDown" }
         this._keys = {};
     } //constructor() 終了
+
+    /**
+         * プリロード(非同期。先に読み込む)のためのメソッド
+         *
+         * 引数には、使いたい素材を制限なく入れることができる
+         */
+    preload() {
+        //引数の素材を_assetsに追加
+        const _assets = arguments;
+        //素材の数だけ繰り返す
+        for (let i = 0; i < _assets.length; i++) {
+            //_preloadPromises[i]に、あなたはプリロードのプロミス（非同期処理をやりやすくする）だよ、と教える
+            this._preloadPromises[i] = new Promise((resolve, reject) => {
+                //もしそのファイルの拡張子が、jpg、jpeg、png、gifのどれかのとき
+                if (_assets[i].match(/\.(jpg|jpeg|png|gif)$/i)) {
+                    //_imgに、あなたは画像ですよ、と教える
+                    let _img = new Image();
+                    //img.srcに、引数で指定した画像ファイルを代入
+                    _img.src = _assets[i];
+
+                    //画像が読み込み終わったら、成功ということで、resolve()を呼び出す
+                    _img.addEventListener('load', () => {
+                        resolve();
+                    }, { passive: true, once: true });
+
+                    //画像が読み込めなければ、エラーということで、reject()を呼び出す
+                    _img.addEventListener('error', () => {
+                        reject(`「${_assets[i]}」は読み込めないよ！`);
+                    }, { passive: true, once: true });
+                }
+                //もしそのファイルの拡張子が、wav、wave、mp3、oggのどれかのとき
+                else if (_assets[i].match(/\.(wav|wave|mp3|ogg)$/i)) {
+                    //_soundに、あなたはサウンドですよ、と教える
+                    let _sound = new Sound();
+                    //_sound.srcに、引数で指定した音声ファイルを代入
+                    _sound.src = _assets[i];
+                    //this.soundsに、読み込んだ音声を入れておく
+                    this.sounds[_assets[i]] = _sound;
+                    //音声を再生する準備をする
+                    this.sounds[_assets[i]].load();
+
+                    //サウンドが読み込み終わったら、成功ということで、resolve()を呼び出す
+                    _sound.addEventListener('canplaythrough', () => {
+                        resolve();
+                    }, { passive: true, once: true });
+
+                    //サウンドが読み込めなければ、エラーということで、reject()を呼び出す
+                    _sound.addEventListener('error', () => {
+                        reject(`「${_assets[i]}」は読み込めないよ！`);
+                    }, { passive: true, once: true });
+                }
+                //ファイルの拡張子がどれでもないとき
+                else {
+                    //エラーということで、reject()を呼び出す
+                    reject(`「${_assets[i]}」の形式は、プリロードに対応していないよ！`);
+                }
+            });
+        }
+    } //preload() 終了
+
+    /**
+     * プリロードなどの設定が終わったあとに実行する
+     *
+     * 引数
+     * callback : プリロードなどの設定が終わったあとに実行したいプログラム。今回はゲームのメイン部分
+     */
+    main(callback) {
+        //ゲームが始まる前に実行しておきたいもの（今回はプリロード）が、すべて成功したあとに、実行したかったゲームのメイン部分「callback()」を実行
+        //失敗したときはコンソールにエラーを表示
+        Promise.all(this._preloadPromises).then(result => {//Promise.allは、引数に指定したプロミスをすべて実行→thenメソッドが成功、失敗を受け取る
+            callback();
+        }).catch(reject => {
+            console.error(reject);
+        });
+    } //main() 終了
 
     /*********************************************************
      * startメソッドを呼び出すことで、メインループが開始される
@@ -49,11 +138,26 @@ class Game {
         //現在のシーン（currentScene）になにも入っていないときは、scenes[0]を代入
         this.currentScene = this.currentScene || this.scenes[0];
 
+        //ゲームがはじまったときと、ブラウザのサイズが変わったときに呼ばれる。縦横の比を変えずに、canvasを拡大縮小できる
+        const _resizeEvent = () => {
+            //ブラウザとcanvasの比率の、縦と横を計算し、小さいほうを_ratioに代入する
+            const _ratio = Math.min(innerWidth / this.canvas.width, innerHeight / this.canvas.height);
+            //canvasのサイズを、ブラウザに合わせて変更する
+            this.canvas.style.width = this.canvas.width * _ratio + 'px';
+            this.canvas.style.height = this.canvas.height * _ratio + 'px';
+        } //_resizeEvent() 終了
+
+        //ブラウザのサイズが変更されたとき、_resizeを呼び出す
+        addEventListener('resize', _resizeEvent, { passive: true });
+        //_resizeを呼び出す
+        _resizeEvent();
         //メインループを呼び出す
         this._mainLoop();
 
+        //ユーザーの操作を待つためのメソッドを呼び出す
+        this._waitUserManipulation();
         //イベントリスナーをセットする
-        this._setEventListener();
+        //this._setEventListener();
     } //start() 終了
 
     /******************************************
@@ -112,6 +216,56 @@ class Game {
 
     } //_setEventListener() 終了
 
+    /**
+     * ユーザーからの操作を待つためのメソッド
+     */
+    _waitUserManipulation() {
+        //すべての音声を再生する
+        const _playAllSounds = e => {
+            //デフォルトのイベントを発生させない
+            e.preventDefault();
+            //画面にタッチされたかどうかの変数をtrueにする
+            this._isAlreadyTouched = true;
+
+            //音声を再生するためのプロミスを入れておく配列
+            const _playPromises = [];
+
+            //this.soundsの数だけ繰り返す
+            //この繰り返しは、読み込まれた音声を、最初に全て同時に再生してしまおうというもの
+            //こうすることで、スマホのブラウザなどの、音声を自動で流せないという制限を解決できる
+            for (let sound in this.sounds) {
+                //音声を再生する準備をする
+                this.sounds[sound].load();
+                //音声をミュートにする
+                this.sounds[sound].muted = true;
+                //音声を再生するメソッドはPromiseを返してくれるので、soundPromiseに追加
+                _playPromises.push(this.sounds[sound].play());
+            }
+
+            //Promiseが成功か失敗かのチェーン
+            Promise.all(_playPromises).then(() => {
+                //成功した場合は全ての音をストップする
+                for (let sound in this.sounds) {
+                    this.sounds[sound].stop();
+                }
+            }).catch(err => {
+                //失敗した場合はエラーを表示
+                console.log(err);
+            });
+
+            //音声を再生するときのエラーを防ぐために、すこしだけ待つ
+            setTimeout(() => {
+                //イベントリスナーをセットする
+                this._setEventListener();
+                this._hasFinishedSetting = true;
+            }, 2000);
+        } //_playAllSounds() 終了
+
+        //タッチされたときや、なにかキーが押されたとき、_playAllSoundsを呼び出す
+        this.canvas.addEventListener('touchstart', _playAllSounds, { passive: false, once: true });
+        addEventListener('keydown', _playAllSounds, { passive: false, once: true });
+    } //_waitUserManipulation() 終了
+
 
     /****************
      * メインループ
@@ -124,22 +278,54 @@ class Game {
         //左上から、画面のサイズまでを、塗りつぶす
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        //現在のシーンのupdateメソッドを呼び出す
-        this.currentScene.update();
-        //ゲームに登場する全てのもの（オブジェクト）の数だけ繰り返す
-        //for (let i = 0; i < this.objs.length; i++) {
-        //スプライトやテキストなど、すべてのオブジェクトのupdateメソッドを呼び出す
-        //this.objs[i].update(this.canvas);
-        //}
+        //もし、ユーザーがまだ画面をタッチしていない（画面を操作していない）とき、スタートパネルを表示
+        if (!this._isAlreadyTouched) this.startPanel();
+        //設定がすでに終了しているとき
+        else if (this._hasFinishedSetting) {
 
-        //現在のシーンの、ゲームに登場する全てのもの（オブジェクト）の数だけ繰り返す
-        for (let i = 0; i < this.currentScene.objs.length; i++) {
-            //現在のシーンの、すべてのオブジェクトのupdateメソッドを呼び出す
-            this.currentScene.objs[i].update(this.canvas);
+            //現在のシーンのupdateメソッドを呼び出す
+            this.currentScene.update();
+            //ゲームに登場する全てのもの（オブジェクト）の数だけ繰り返す
+            //for (let i = 0; i < this.objs.length; i++) {
+            //スプライトやテキストなど、すべてのオブジェクトのupdateメソッドを呼び出す
+            //this.objs[i].update(this.canvas);
+            //}
+
+            //現在のシーンの、ゲームに登場する全てのもの（オブジェクト）の数だけ繰り返す
+            for (let i = 0; i < this.currentScene.objs.length; i++) {
+                //現在のシーンの、すべてのオブジェクトのupdateメソッドを呼び出す
+                this.currentScene.objs[i].update(this.canvas);
+            }
+            //現在のシーンを覚えておいてもらう
+            this._temporaryCurrentScene = this.currentScene;
         }
         //自分自身（_mainLoop）を呼び出して、ループさせる
         requestAnimationFrame(this._mainLoop.bind(this));
     } //_mainLoop() 終了
+
+    /**
+     * ゲームを開始して一番最初に表示される画面をつくるメソッド。ここでユーザーに操作してもらい、音声を出せるようにする
+     */
+    startPanel() {
+        //表示したいテキストを_textに代入
+        const _text = 'タップ、またはなにかキーを押してね！'
+        //表示したいテキストのフォントを_fontに代入
+        const _font = "游ゴシック体, 'Yu Gothic', YuGothic, sans-serif";
+        //フォントサイズは、ゲーム画面の横幅を20で割ったもの。（今回は表示したい文字が18文字なので、左右の余白も考え、20で割る）
+        const _fontSize = this.canvas.width / 20;
+        //画家さん（コンテキスト）を呼ぶ
+        const _ctx = this.canvas.getContext('2d');
+        //テキストの横幅を取得
+        const _textWidth = _ctx.measureText(_text).width;
+        //フォントの設定
+        _ctx.font = `normal ${_fontSize}px ${_font}`;
+        //ベースラインを文字の中央にする
+        _ctx.textBaseline = 'middle';
+        //テキストの色をグレーに設定
+        _ctx.fillStyle = '#aaaaaa';
+        //テキストを上下左右中央の位置に表示
+        _ctx.fillText(_text, (this.canvas.width - _textWidth) / 2, this.canvas.height / 2);
+    } //startPanel() 終了
 
     /**
      * オブジェクトをゲームに追加できるようになる、addメソッドを作成
